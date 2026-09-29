@@ -1,0 +1,16 @@
+[Unit]
+Description=Grow the data partition to the end of the storage device
+RequiresMountsFor=/data
+ConditionPathIsMountPoint=/data
+ConditionFirstBoot=yes
+Wants=first-boot-complete.target
+Before=first-boot-complete.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/expand-data-partition
+ExecStartPost=-/sbin/fstrim /data
+
+[Install]
+WantedBy=multi-user.target

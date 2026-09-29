@@ -1,0 +1,13 @@
+[Unit]
+Description=Save the machine ID on the data partition
+RequiresMountsFor=/data
+ConditionPathIsMountPoint=/data
+After=first-boot-complete.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/save-machine-id
+
+[Install]
+WantedBy=multi-user.target
