@@ -4,6 +4,7 @@ IMG_FILE="${STAGE_WORK_DIR}/${IMG_FILENAME}${IMG_SUFFIX}.img"
 INFO_FILE="${STAGE_WORK_DIR}/${IMG_FILENAME}${IMG_SUFFIX}.info"
 SBOM_FILE="${STAGE_WORK_DIR}/${IMG_FILENAME}${IMG_SUFFIX}.sbom"
 BMAP_FILE="${STAGE_WORK_DIR}/${IMG_FILENAME}${IMG_SUFFIX}.bmap"
+CACHE_FILE="${STAGE_WORK_DIR}/${IMG_FILENAME}${IMG_SUFFIX}.pipcache.tar.xz"
 
 on_chroot <<- EOF
 	update-initramfs -k all -c
@@ -146,3 +147,4 @@ if [ -f "${BMAP_FILE}" ]; then
 	cp "$BMAP_FILE" "$DEPLOY_DIR/"
 fi
 cp "$INFO_FILE" "$DEPLOY_DIR/"
+[ -f "$CACHE_FILE" ] && cp "$CACHE_FILE" "$DEPLOY_DIR/"
