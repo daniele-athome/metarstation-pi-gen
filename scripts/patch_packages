@@ -1,0 +1,7 @@
+
+function remove_package() {
+  local pkg_file="$1"
+  local pkg_name="$2"
+
+  sed -i "s/${pkg_name}//" "$pkg_file"
+}
