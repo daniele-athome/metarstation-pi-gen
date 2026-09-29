@@ -11,6 +11,8 @@ mkdir -p "${ROOTFS_DIR}"
 
 BOOT_SIZE="$((512 * 1024 * 1024))"
 ROOT_SIZE=$(du -x --apparent-size -s "${EXPORT_ROOTFS_DIR}" --exclude var/cache/apt/archives --exclude boot/firmware --block-size=1 | cut -f 1)
+ROOT_SLOT_SIZE="$((4 * 1024 * 1024 * 1024))"
+DATA_SIZE="$((1024 * 1024 * 1024))"
 
 # All partition sizes and starts will be aligned to this size
 ALIGN="$((8 * 1024 * 1024))"
@@ -20,17 +22,32 @@ ALIGN="$((8 * 1024 * 1024))"
 # image.
 ROOT_MARGIN="$(echo "($ROOT_SIZE * 0.2 + 200 * 1024 * 1024) / 1" | bc)"
 
+if [ "$((ROOT_SIZE + ROOT_MARGIN))" -gt "${ROOT_SLOT_SIZE}" ]; then
+	echo "ERROR: the rootfs no longer fits in the fixed root slot:" >&2
+	echo "       rootfs        $((ROOT_SIZE / 1024 / 1024)) MiB" >&2
+	echo "       margin        $((ROOT_MARGIN / 1024 / 1024)) MiB" >&2
+	echo "       slot capacity $((ROOT_SLOT_SIZE / 1024 / 1024)) MiB" >&2
+	echo "Shrink the image, or raise ROOT_SLOT_SIZE and reflash every deployed card." >&2
+	exit 1
+fi
+
 BOOT_PART_START=$((ALIGN))
 BOOT_PART_SIZE=$(((BOOT_SIZE + ALIGN - 1) / ALIGN * ALIGN))
 ROOT_PART_START=$((BOOT_PART_START + BOOT_PART_SIZE))
-ROOT_PART_SIZE=$(((ROOT_SIZE + ROOT_MARGIN + ALIGN  - 1) / ALIGN * ALIGN))
-IMG_SIZE=$((BOOT_PART_START + BOOT_PART_SIZE + ROOT_PART_SIZE))
+ROOT_PART_SIZE=$(((ROOT_SLOT_SIZE + ALIGN - 1) / ALIGN * ALIGN))
+ROOT_B_PART_START=$((ROOT_PART_START + ROOT_PART_SIZE))
+ROOT_B_PART_SIZE=$((ROOT_PART_SIZE))
+DATA_PART_START=$((ROOT_B_PART_START + ROOT_B_PART_SIZE))
+DATA_PART_SIZE=$(((DATA_SIZE + ALIGN - 1) / ALIGN * ALIGN))
+IMG_SIZE=$((DATA_PART_START + DATA_PART_SIZE))
 
 truncate -s "${IMG_SIZE}" "${IMG_FILE}"
 
 parted --script "${IMG_FILE}" mklabel msdos
 parted --script "${IMG_FILE}" unit B mkpart primary fat32 "${BOOT_PART_START}" "$((BOOT_PART_START + BOOT_PART_SIZE - 1))"
 parted --script "${IMG_FILE}" unit B mkpart primary ext4 "${ROOT_PART_START}" "$((ROOT_PART_START + ROOT_PART_SIZE - 1))"
+parted --script "${IMG_FILE}" unit B mkpart primary ext4 "${ROOT_B_PART_START}" "$((ROOT_B_PART_START + ROOT_B_PART_SIZE - 1))"
+parted --script "${IMG_FILE}" unit B mkpart primary ext4 "${DATA_PART_START}" "$((DATA_PART_START + DATA_PART_SIZE - 1))"
 
 echo "Creating loop device..."
 cnt=0
@@ -48,6 +65,8 @@ done
 ensure_loopdev_partitions "$LOOP_DEV"
 BOOT_DEV="${LOOP_DEV}p1"
 ROOT_DEV="${LOOP_DEV}p2"
+# "${LOOP_DEV}p3" is the spare root slot and is left untouched on purpose
+DATA_DEV="${LOOP_DEV}p4"
 
 ROOT_FEATURES="^huge_file"
 for FEATURE in 64bit; do
@@ -63,6 +82,8 @@ else
 fi
 
 mkdosfs -n bootfs -F "$FAT_SIZE" -s 1 -v "$BOOT_DEV" > /dev/null
+
+mke2fs -q -t ext4 -L data -O "$ROOT_FEATURES" "$DATA_DEV" > /dev/null
 
 STAGING="${STAGE_WORK_DIR}/export-root-staging"
 rm -rf "${STAGING}"
