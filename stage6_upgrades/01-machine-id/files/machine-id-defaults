@@ -1,0 +1,9 @@
+# Where the machine ID is kept across reboots.
+#
+# The location is shared by the initramfs script that restores it
+# (/etc/initramfs-tools/scripts/init-bottom/machine-id) and by the service that
+# saves it (/usr/local/sbin/save-machine-id). The latter needs the full path,
+# the former needs it relative to the partition root, since it mounts the data
+# partition somewhere else.
+DATA_MOUNT=/data
+STATE_REL=system/machine-id
