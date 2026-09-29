@@ -6,4 +6,7 @@ if [[ "${DISABLE_FIRST_BOOT_USER_RENAME}" == "0" ]]; then
 	EOF
 else
 	rm -f "${ROOTFS_DIR}/etc/xdg/autostart/piwiz.desktop"
+    on_chroot << EOF
+apt-get purge -y userconf-pi
+EOF
 fi
