@@ -1,0 +1,14 @@
+[Unit]
+Description=WiFi watchdog daemon
+After=network.target
+
+[Service]
+Restart=on-failure
+RestartSec=5s
+Type=simple
+ExecStart=/usr/local/sbin/wifi-watchdog
+EnvironmentFile=/etc/default/wifi-watchdog
+StandardError=journal
+
+[Install]
+WantedBy=default.target
