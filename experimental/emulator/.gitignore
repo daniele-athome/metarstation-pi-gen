@@ -1,0 +1,4 @@
+/boot
+/virt
+*.qcow2
+*.img
