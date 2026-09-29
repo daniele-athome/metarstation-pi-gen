@@ -1,0 +1,25 @@
+[Unit]
+Description=Improv Wi-Fi BLE provisioning
+Documentation=https://www.improv-wifi.com/
+# wait for the Bluetooth adapter to appear
+Requires=sys-subsystem-bluetooth-devices-hci0.device
+After=sys-subsystem-bluetooth-devices-hci0.device bluetooth.service NetworkManager.service
+Wants=bluetooth.service
+
+[Service]
+Type=simple
+ExecStartPre=-/usr/sbin/rfkill unblock bluetooth wlan
+# FIXME not a good way to handle the conflict between this unit and wifi-watchdog
+ExecStartPre=-/usr/bin/systemctl stop wifi-watchdog.service
+ExecStart=/usr/bin/timeout 300 /usr/local/bin/bestool iti improv-wifi --one-shot --no-auth
+ExecStopPost=-/usr/bin/systemctl start wifi-watchdog.service
+SuccessExitStatus=124
+Restart=no
+
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
