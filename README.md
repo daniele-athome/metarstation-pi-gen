@@ -65,8 +65,10 @@ Two upstream variables behave differently here:
 ## Example config
 
 ```bash
-IMG_NAME='metarstation'
-RELEASE='trixie'
+ARCH=armhf
+RELEASE=trixie
+IMG_NAME="raspios-metar-$RELEASE-$ARCH"
+PI_GEN_RELEASE="Raspberry Pi METAR Station"
 
 # Mandatory: stage2_slim replaces stage2, and the desktop stages are skipped.
 STAGE_LIST="stage0 stage1 stage2_slim stage6_upgrades stage7_networking stage8_metar"
@@ -82,6 +84,7 @@ TIMEZONE_DEFAULT='Europe/Rome'
 KEYBOARD_KEYMAP='it'
 KEYBOARD_LAYOUT='Italian'
 WPA_COUNTRY='IT'
+ENABLE_CLOUD_INIT=0
 
 ENABLE_SSH=1
 # Required: only certificates signed by this CA may log in.
@@ -92,6 +95,9 @@ COMPRESSION_LEVEL=6
 
 # Optional: reuse and refresh the pip wheel cache between builds.
 # CACHE_OUTPUT="${PWD}/cache"
+
+# mandatory internal detail
+export PUBKEY_SSH_CA
 ```
 
 Build natively with `sudo ./build.sh`, or in a container with `./build-docker.sh`.
