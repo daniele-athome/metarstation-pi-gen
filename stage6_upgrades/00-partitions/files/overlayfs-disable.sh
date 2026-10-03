@@ -23,6 +23,9 @@ if findmnt -no OPTIONS "${BOOT_DIR}" | grep -qE '(^|,)ro(,|$)'; then
 	REMOUNT_RO=yes
 fi
 
-sed -i -E 's/(^|[[:space:]])overlayroot=[^[:space:]]*[[:space:]]?/\1/g' "${CMDLINE}"
+sed -i -E -e 's/(^|[[:space:]])overlayroot=[^[:space:]]*[[:space:]]?/\1/g' \
+          -e 's/(^|[[:space:]])rw([[:space:]]|$)/\1/g' \
+          -e "s|^|rw |" \
+          "${CMDLINE}"
 
 echo "overlayfs-disable: overlay filesystem disabled, reboot to apply"

@@ -30,6 +30,7 @@ fi
 
 # drop any overlayroot= parameter already there, ours is the only supported one
 sed -i -E -e 's/(^|[[:space:]])overlayroot=[^[:space:]]*[[:space:]]?/\1/g' \
+          -e 's/(^|[[:space:]])rw([[:space:]]|$)/\1/g' \
           -e "s|^|overlayroot=tmpfs:recurse=0 |" \
           "${CMDLINE}"
 
