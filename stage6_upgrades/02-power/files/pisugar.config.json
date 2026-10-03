@@ -1,0 +1,9 @@
+{
+  "long_tap_enable": true,
+  "long_tap_shell": "reboot",
+  "auto_shutdown_level": 10.0,
+  "auto_power_on": true,
+  "soft_poweroff": true,
+  "soft_poweroff_shell": "poweroff",
+  "anti_mistouch": true
+}
