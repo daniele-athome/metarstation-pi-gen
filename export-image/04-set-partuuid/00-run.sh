@@ -10,7 +10,7 @@ ROOT_PARTUUID="${IMGID}-02"
 DATA_PARTUUID="${IMGID}-04"
 
 sed -i "s/BOOTDEV/PARTUUID=${BOOT_PARTUUID}/" "${ROOTFS_DIR}/etc/fstab"
-sed -i "s/ROOTDEV/PARTUUID=${ROOT_PARTUUID}/" "${ROOTFS_DIR}/etc/fstab"
+# no more ROOTDEV: the root device is handled in cmdline.txt now
 sed -i "s/DATADEV/PARTUUID=${DATA_PARTUUID}/" "${ROOTFS_DIR}/etc/fstab"
 
 sed -i "s/ROOTDEV/PARTUUID=${ROOT_PARTUUID}/" "${ROOTFS_DIR}/boot/firmware/cmdline.txt"
