@@ -56,6 +56,16 @@ Everything upstream pi-gen supports in `config` still applies. This fork adds:
   cache is always deployed alongside the image as
   `<IMG_FILENAME><IMG_SUFFIX>.pipcache.tar.xz`.
 
+* `DEPLOY_ROOTFS_SLOT` (Default: `1`)
+
+  Also deploy the contents of the first root slot on its own, as
+  `<IMG_FILENAME><IMG_SUFFIX>.rootfs.img` (compressed with `DEPLOY_COMPRESSION`,
+  plus a `.rootfs.bmap` when `bmaptool` is available). It is carved out of the
+  finished image, so it is byte-for-byte what the image ships, and it can be
+  written to either root slot of a deployed card — the slot is only ever named on
+  the kernel command line, never inside the filesystem. Set to `0` to skip it and
+  save the extra compression pass.
+
 Two upstream variables behave differently here:
 
 * `ARCHIVE_FILENAME` is **gone**. Compressed artifacts are named after `IMG_FILENAME`.
