@@ -1,0 +1,1 @@
+SUBSYSTEM=="i2c-dev", KERNEL=="i2c-1", TAG+="systemd", ENV{SYSTEMD_WANTS}+="pisugar-detect.service"

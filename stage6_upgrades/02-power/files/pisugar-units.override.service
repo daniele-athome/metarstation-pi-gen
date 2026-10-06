@@ -1,0 +1,4 @@
+[Unit]
+Wants=pisugar-detect.service
+After=pisugar-detect.service
+ConditionPathExists=/run/pisugar-present

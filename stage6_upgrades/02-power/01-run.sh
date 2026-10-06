@@ -20,4 +20,15 @@ EOF
 install -d -m 0755 "${ROOTFS_DIR}/etc/pisugar-server"
 install -m 0644 files/pisugar.config.json "${ROOTFS_DIR}/etc/pisugar-server/config.json"
 
+# pisugar detection service
+install -m 0644 files/pisugar-udev.rules "${ROOTFS_DIR}/etc/udev/rules.d/60-pisugar.rules"
+install -m 0644 files/pisugar-detect.service "${ROOTFS_DIR}/etc/systemd/system/pisugar-detect.service"
+
+# systemd overrides for conditional start
+install -d -m 0755 "${ROOTFS_DIR}/etc/systemd/system/pisugar-server.service.d"
+install -m 0644 files/pisugar-units.override.service "${ROOTFS_DIR}/etc/systemd/system/pisugar-server.service.d/conditional.conf"
+install -d -m 0755 "${ROOTFS_DIR}/etc/systemd/system/pisugar-poweroff.service.d"
+install -m 0644 files/pisugar-units.override.service "${ROOTFS_DIR}/etc/systemd/system/pisugar-poweroff.service.d/conditional.conf"
+
+# cleanup
 rm -f "${ROOTFS_DIR}/tmp/pisugar-poweroff.deb" "${ROOTFS_DIR}/tmp/pisugar-server.deb"
