@@ -70,6 +70,45 @@ if ! [ -L "${ROOTFS_DIR}/boot/issue.txt" ]; then
 	ln -s firmware/issue.txt "${ROOTFS_DIR}/boot/issue.txt"
 fi
 
+# os_prefix gives each slot its own kernel, initramfs, dtbs and cmdline.txt here.
+BOOT_DIR="${ROOTFS_DIR}/boot/firmware"
+
+if [ -z "${ROOT_SLOT_PREFIX:-}" ]; then
+	echo "ERROR: ROOT_SLOT_PREFIX is not set" >&2
+	exit 1
+fi
+
+SLOT_DIR="${BOOT_DIR}/${ROOT_SLOT_PREFIX%/}"
+
+install -d -m 755 "${SLOT_DIR}"
+
+shopt -s nullglob
+MOVED=0
+# move kernel, initramfs and blobs into the boot slot directory
+for ENTRY in "${BOOT_DIR}"/kernel*.img "${BOOT_DIR}"/initramfs* \
+	"${BOOT_DIR}"/*.dtb "${BOOT_DIR}"/overlays "${BOOT_DIR}"/cmdline.txt; do
+	[ -e "${ENTRY}" ] || continue
+	mv "${ENTRY}" "${SLOT_DIR}/"
+	MOVED=$((MOVED + 1))
+done
+shopt -u nullglob
+
+if [ "${MOVED}" = 0 ]; then
+	echo "ERROR: no boot files to move into ${ROOT_SLOT_PREFIX}" >&2
+	exit 1
+fi
+
+CONFIG="${BOOT_DIR}/config.txt"
+
+# ahead of every conditional filter, so that it applies to all models
+if grep -qE '^[[:space:]]*os_prefix=' "${CONFIG}"; then
+	sed -i -E "s|^[[:space:]]*os_prefix=.*|os_prefix=${ROOT_SLOT_PREFIX}|" "${CONFIG}"
+else
+	sed -i "1i # Active root slot: its kernel, initramfs, dtbs, overlays and cmdline.txt\\nos_prefix=${ROOT_SLOT_PREFIX}\\n" "${CONFIG}"
+fi
+
+echo "Boot payload moved into ${ROOT_SLOT_PREFIX} (${MOVED} entries)"
+
 cp "$ROOTFS_DIR/etc/rpi-issue" "$INFO_FILE"
 
 {

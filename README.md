@@ -14,6 +14,10 @@ everything not covered here. The target is **armhf / ARMv6** (Raspberry Pi Zero 
   a `data` partition. Only the `data` partition grows, on first boot. The PARTUUIDs are
   pinned (see `DISK_ID`), so a root slot image is valid on any card built from this
   tree.
+* **Per-slot boot payload.** The firmware only reads the FAT boot partition, so each
+  slot gets a directory there — `slot-a/` for the one the image ships (see
+  `ROOT_SLOT_PREFIX`) — holding its kernel, initramfs, dtbs, overlays, and `cmdline.txt`,
+  selected by `os_prefix` in `config.txt`.
 * **Read-only system.** `/` is an `overlayroot` tmpfs overlay and `/boot/firmware` is
   mounted read-only: nothing written outside `/data` survives a reboot. Everything that
   must persist — machine ID, sshd host keys, Wi-Fi credentials, application config —
@@ -75,6 +79,13 @@ Everything upstream pi-gen supports in `config` still applies. This fork adds:
   built for. Leave it alone unless the partition layout changes incompatibly, in
   which case bump the low byte. Set to `random` to get upstream's per-build signature
   back.
+
+* `ROOT_SLOT_PREFIX` (Default: `slot-a/`)
+
+  The `os_prefix` the built image boots from, and the directory on the boot partition
+  that carries its kernel, initramfs, dtbs, overlays and `cmdline.txt`. The trailing
+  `/` is required: without it the firmware treats the value as a filename prefix rather
+  than a directory.
 
 Two upstream variables behave differently here:
 

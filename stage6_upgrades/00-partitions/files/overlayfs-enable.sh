@@ -6,10 +6,28 @@
 set -e
 
 BOOT_DIR="/boot/firmware"
-CMDLINE="${BOOT_DIR}/cmdline.txt"
+CONFIG="${BOOT_DIR}/config.txt"
+
+# the live cmdline.txt sits under os_prefix, next to the active slot's kernel
+active_cmdline() {
+	prefix=""
+	if [ -r "${CONFIG}" ]; then
+		prefix="$(sed -nE 's/^[[:space:]]*os_prefix=([^[:space:]]*).*/\1/p' "${CONFIG}" |
+			tr -d '\r' | head -n1)"
+	fi
+
+	printf '%s' "${BOOT_DIR}/${prefix}cmdline.txt"
+}
+
+CMDLINE="$(active_cmdline)"
 
 if [ ! -e /usr/share/initramfs-tools/scripts/init-bottom/overlayroot ]; then
-	echo "overlayfs-enable: the overlayroot package is not installed" >&2
+	echo "$0: the overlayroot package is not installed" >&2
+	exit 1
+fi
+
+if [ ! -f "${CMDLINE}" ]; then
+	echo "$0: ${CMDLINE} does not exist" >&2
 	exit 1
 fi
 
@@ -34,4 +52,4 @@ sed -i -E -e 's/(^|[[:space:]])overlayroot=[^[:space:]]*[[:space:]]?/\1/g' \
           -e "s|^|overlayroot=tmpfs:recurse=0 |" \
           "${CMDLINE}"
 
-echo "overlayfs-enable: overlay filesystem enabled, reboot to apply"
+echo "$0: overlay filesystem enabled, reboot to apply"
