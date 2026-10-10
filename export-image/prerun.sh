@@ -44,6 +44,12 @@ IMG_SIZE=$((DATA_PART_START + DATA_PART_SIZE))
 truncate -s "${IMG_SIZE}" "${IMG_FILE}"
 
 parted --script "${IMG_FILE}" mklabel msdos
+
+# the MBR signature is the PARTUUID prefix: using a configured value means keeping it stable.
+if [ -n "${DISK_ID:-}" ] && [ "${DISK_ID}" != "random" ]; then
+	sfdisk --disk-id "${IMG_FILE}" "${DISK_ID}" > /dev/null
+fi
+
 parted --script "${IMG_FILE}" unit B mkpart primary fat32 "${BOOT_PART_START}" "$((BOOT_PART_START + BOOT_PART_SIZE - 1))"
 parted --script "${IMG_FILE}" unit B mkpart primary ext4 "${ROOT_PART_START}" "$((ROOT_PART_START + ROOT_PART_SIZE - 1))"
 parted --script "${IMG_FILE}" unit B mkpart primary ext4 "${ROOT_B_PART_START}" "$((ROOT_B_PART_START + ROOT_B_PART_SIZE - 1))"

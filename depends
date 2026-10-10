@@ -1,5 +1,6 @@
 quilt
 parted
+sfdisk:fdisk
 realpath:coreutils
 qemu-arm:qemu-user-binfmt
 debootstrap

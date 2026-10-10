@@ -6,7 +6,7 @@ IMGID="$(dd if="${IMG_FILE}" skip=440 bs=1 count=4 2>/dev/null | xxd -e | cut -f
 
 BOOT_PARTUUID="${IMGID}-01"
 ROOT_PARTUUID="${IMGID}-02"
-# "${IMGID}-03" is the spare root slot, unused for now
+# "${IMGID}-03" is the B root slot
 DATA_PARTUUID="${IMGID}-04"
 
 sed -i "s/BOOTDEV/PARTUUID=${BOOT_PARTUUID}/" "${ROOTFS_DIR}/etc/fstab"

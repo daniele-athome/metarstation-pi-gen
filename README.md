@@ -10,9 +10,10 @@ everything not covered here. The target is **armhf / ARMv6** (Raspberry Pi Zero 
 
 ## How it differs from upstream pi-gen
 
-* **Four partitions instead of two.** `bootfs`, two fixed-size root slots (A and B, for
-  future in-place upgrades) and a `data` partition. Only the `data` partition grows, on
-  first boot.
+* **Four partitions instead of two.** `bootfs`, two fixed-size root slots (A and B) and
+  a `data` partition. Only the `data` partition grows, on first boot. The PARTUUIDs are
+  pinned (see `DISK_ID`), so a root slot image is valid on any card built from this
+  tree.
 * **Read-only system.** `/` is an `overlayroot` tmpfs overlay and `/boot/firmware` is
   mounted read-only: nothing written outside `/data` survives a reboot. Everything that
   must persist — machine ID, sshd host keys, Wi-Fi credentials, application config —
@@ -65,6 +66,15 @@ Everything upstream pi-gen supports in `config` still applies. This fork adds:
   written to either root slot of a deployed card — the slot is only ever named on
   the kernel command line, never inside the filesystem. Set to `0` to skip it and
   save the extra compression pass.
+
+* `DISK_ID` (Default: `0xc0ffee01`)
+
+  The MBR disk signature of the image. For a DOS label this is the PARTUUID prefix,
+  so pinning it makes `fstab` and `cmdline.txt` identical on every card built from
+  this tree — which is what lets a root slot image be written to a card it was not
+  built for. Leave it alone unless the partition layout changes incompatibly, in
+  which case bump the low byte. Set to `random` to get upstream's per-build signature
+  back.
 
 Two upstream variables behave differently here:
 
