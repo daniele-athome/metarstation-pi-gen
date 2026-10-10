@@ -1,0 +1,136 @@
+#!/bin/bash
+# Point the card at a root slot by moving os_prefix in config.txt.
+
+set -euo pipefail
+
+BOOT_DIR=/boot/firmware
+CONFIG="${BOOT_DIR}/config.txt"
+CONFIG_BACKUP="${BOOT_DIR}/config.bak"
+
+SLOT_A_PART=2
+SLOT_B_PART=3
+
+die() {
+	echo "${0##*/}: $*" >&2
+	exit 1
+}
+
+warn() {
+	echo "${0##*/}: $*" >&2
+}
+
+info() {
+	echo "${0##*/}: $*"
+}
+
+usage() {
+	cat >&2 <<- EOF
+		usage: ${0##*/} a|b
+
+		Moves os_prefix to that slot's directory on the boot partition. The slot
+		must already have been written by slot-flash.
+
+		To roll back, switch to the other slot. If the card does not come up at
+		all, boot it elsewhere and copy config.bak over config.txt.
+	EOF
+	exit "${1:-2}"
+}
+
+[ $# -eq 1 ] || usage
+case "$1" in
+	-h | --help) usage 0 ;;
+	a | A) TARGET_PART="${SLOT_A_PART}" ;;
+	b | B) TARGET_PART="${SLOT_B_PART}" ;;
+	*) die "not a slot: $1 (expected a or b)" ;;
+esac
+
+SLOT="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+TARGET_PREFIX="slot-${SLOT}"
+TARGET_DIR="${BOOT_DIR}/${TARGET_PREFIX}"
+
+[ "$(id -u)" = 0 ] || die "must run as root"
+
+for CMD in findmnt sed; do
+	command -v "${CMD}" > /dev/null 2>&1 || die "missing required command: ${CMD}"
+done
+
+[ -f "${CONFIG}" ] || die "cannot read ${CONFIG}"
+
+# the value of a key=value kernel parameter; splitting on whitespace is the parse
+cmdline_param() {
+	local key="$1" file="$2" param
+	# shellcheck disable=SC2013
+	for param in $(cat "${file}"); do
+		if [ "${param#"${key}"=}" != "${param}" ]; then
+			printf '%s' "${param#*=}"
+			return 0
+		fi
+	done
+	return 1
+}
+
+ROOT_PARAM="$(cmdline_param root /proc/cmdline)" || die "no root= on /proc/cmdline"
+# the partition number is the last field: an MBR PARTUUID is <disk id>-<nn>
+RUNNING_PART="$((10#${ROOT_PARAM##*-}))"
+
+ACTIVE_PREFIX="$(sed -nE 's/^[[:space:]]*os_prefix=([^[:space:]]*).*/\1/p' "${CONFIG}" |
+	tr -d '\r' | head -n1)"
+
+case "${RUNNING_PART}" in
+	"${SLOT_A_PART}") RUNNING_SLOT=a ;;
+	"${SLOT_B_PART}") RUNNING_SLOT=b ;;
+	*) RUNNING_SLOT="?" ;;
+esac
+
+info "running   slot ${RUNNING_SLOT} (p${RUNNING_PART})"
+info "configured ${ACTIVE_PREFIX:-<boot root>}"
+info "target    ${TARGET_PREFIX}/"
+
+if [ "${ACTIVE_PREFIX}" = "${TARGET_PREFIX}/" ]; then
+	info "config.txt already boots ${TARGET_PREFIX}, nothing to do"
+	exit 0
+fi
+
+#
+# Preflight checks
+#
+
+[ -d "${TARGET_DIR}" ] || die "${TARGET_DIR} does not exist: run slot-flash ${SLOT} first"
+
+if [ "${TARGET_PART}" = "${RUNNING_PART}" ]; then
+	warn "slot ${SLOT} is already the running slot; this only changes which kernel it uses"
+fi
+
+#
+# Commit
+#
+
+BOOT_REMOUNTED=no
+
+cleanup() {
+	if [ "${BOOT_REMOUNTED}" = yes ]; then
+		sync
+		mount -o remount,ro "${BOOT_DIR}" || warn "cannot restore ${BOOT_DIR} read-only"
+	fi
+}
+trap cleanup EXIT
+
+if findmnt -no OPTIONS "${BOOT_DIR}" | grep -qE '(^|,)ro(,|$)'; then
+	mount -o remount,rw "${BOOT_DIR}" || die "cannot remount ${BOOT_DIR} read-write"
+	BOOT_REMOUNTED=yes
+fi
+
+# (safely) backup the config.txt file for easy offline restore
+cp "${CONFIG}" "${CONFIG}.bak.new"
+sync
+mv "${CONFIG}.bak.new" "${CONFIG_BACKUP}"
+sync
+
+sed -E "s|^[[:space:]]*os_prefix=.*|os_prefix=${TARGET_PREFIX}/|" "${CONFIG}" \
+  > "${CONFIG}.new"
+sync
+mv "${CONFIG}.new" "${CONFIG}"
+sync
+
+info "switched to ${TARGET_PREFIX}, reboot to apply"
+info "to undo: slot-switch ${RUNNING_SLOT}  (or copy config.bak over config.txt from a reader)"
