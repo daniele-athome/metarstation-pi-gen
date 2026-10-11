@@ -23,12 +23,12 @@ info() {
 }
 
 usage() {
-  cat >&2 <<- EOF
-    usage: ${0##*/} --slot a|b <url|file>
+  cat >&2 << EOF
+usage: ${0##*/} --slot a|b <url|file>
 
-      --slot a|b   the slot to write; must not be the running one
-      <url|file>   the .rootfs.img, .rootfs.img.xz or .rootfs.img.gz
-  EOF
+  --slot a|b   the slot to write; must not be the running one
+  <url|file>   the .rootfs.img, .rootfs.img.xz or .rootfs.img.gz
+EOF
   exit "${1:-2}"
 }
 
@@ -320,6 +320,13 @@ NEW_CMDLINE="${CMDLINE_TEXT//${OLD_ROOT}/${NEW_ROOT}}"
 
 [ "${NEW_CMDLINE}" != "${CMDLINE_TEXT}" ] ||
   die "could not replace ${OLD_ROOT} in ${ACTIVE_CMDLINE}"
+
+# TODO starting ruac 1.15, the backend is queried if "ruac.slot" is not found in cmdline
+if OLD_RAUC_SLOT="$(cmdline_param rauc.slot "${ACTIVE_CMDLINE}")"; then
+  NEW_CMDLINE="${NEW_CMDLINE//rauc.slot=${OLD_RAUC_SLOT}/rauc.slot=${TARGET_PREFIX}}"
+else
+  NEW_CMDLINE="${NEW_CMDLINE} rauc.slot=${TARGET_PREFIX}"
+fi
 
 printf '%s\n' "${NEW_CMDLINE}" > "${STAGING}/cmdline.txt"
 

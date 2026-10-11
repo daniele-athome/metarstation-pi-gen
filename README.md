@@ -34,14 +34,14 @@ everything not covered here. The target is **armhf / ARMv6** (Raspberry Pi Zero 
 Upstream stages 0–2 are used mostly unchanged; stages 3–5 (desktop, full image) are left
 in the tree for easier merges but never built.
 
-| Stage               | Purpose                                                                                                                                                                                                                      |
-|---------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `stage0`            | Bootstrap: minimal filesystem via `debootstrap`, apt configuration.                                                                                                                                                          |
-| `stage1`            | Minimal bootable system: fstab, bootloader, networking, `raspi-config`.                                                                                                                                                      |
-| `stage2_slim`       | Replaces upstream `stage2` (the Lite system) with the same sub-stages minus cloud-init, and a trimmed package list.                                                                                                          |
-| `stage6_upgrades`   | Runtime support for the A/B layout: the `/data` mount, read-only boot and root, first-boot growth of the data partition, and persistence of the machine ID across reboots.                                                   |
-| `stage7_networking` | Connectivity: Improv Wi-Fi provisioning over BLE, NetworkManager with its connections stored on `/data`, a Wi-Fi watchdog, SSH configuration, and a Cloudflare Tunnel for remote access.                                     |
-| `stage8_metar`      | The application: installs [metarstation-daemon](https://github.com/daniele-athome/metarstation-daemon) in a virtualenv, plus the weather daemon and the HTTP server serving the dashboard. This is the exported image stage. |
+| Stage               | Purpose                                                                                                                                                                                                                            |
+|---------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `stage0`            | Bootstrap: minimal filesystem via `debootstrap`, apt configuration.                                                                                                                                                                |
+| `stage1`            | Minimal bootable system: fstab, bootloader, networking, `raspi-config`.                                                                                                                                                            |
+| `stage2_slim`       | Replaces upstream `stage2` (the Lite system) with the same sub-stages minus cloud-init, and a trimmed package list.                                                                                                                |
+| `stage6_upgrades`   | Runtime support for the A/B layout: the `/data` mount, read-only boot and root, first-boot growth of the data partition, persistence of the machine ID across reboots, and RAUC with a custom bootloader backend over `os_prefix`. |
+| `stage7_networking` | Connectivity: Improv Wi-Fi provisioning over BLE, NetworkManager with its connections stored on `/data`, a Wi-Fi watchdog, SSH configuration, and a Cloudflare Tunnel for remote access.                                           |
+| `stage8_metar`      | The application: installs [metarstation-daemon](https://github.com/daniele-athome/metarstation-daemon) in a virtualenv, plus the weather daemon and the HTTP server serving the dashboard. This is the exported image stage.       |
 
 ## New environment variables
 
@@ -85,7 +85,21 @@ Everything upstream pi-gen supports in `config` still applies. This fork adds:
   The `os_prefix` the built image boots from, and the directory on the boot partition
   that carries its kernel, initramfs, dtbs, overlays and `cmdline.txt`. The trailing
   `/` is required: without it the firmware treats the value as a filename prefix rather
-  than a directory.
+  than a directory. It doubles as the RAUC bootname, written to the command line as
+  `rauc.slot=`, so it must be `slot-a` or `slot-b`.
+
+* `RAUC_COMPATIBLE` (Default: `metarstation-$ARCH`)
+
+  The `compatible` string in `/etc/rauc/system.conf`. RAUC refuses a bundle whose
+  manifest declares a different one, so this is the guard against installing an
+  image built for other hardware. Changing it makes every existing bundle
+  incompatible.
+
+* `RAUC_KEYRING_FILE` (Default: unset)
+
+  Path on the build host to the CA certificate that signs update bundles. It is
+  installed as `/etc/rauc/keyring.pem` and referenced from `system.conf`. Leave
+  it unset and the `[keyring]` section is omitted.
 
 Two upstream variables behave differently here:
 

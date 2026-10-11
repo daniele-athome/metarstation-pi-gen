@@ -1,0 +1,72 @@
+#!/bin/sh
+# RAUC custom bootloader backend: os_prefix in config.txt is the primary pointer.
+
+set -eu
+
+BOOT_DIR=/boot/firmware
+CONFIG="${BOOT_DIR}/config.txt"
+STATE_DIR=/data/rauc
+PROC_CMDLINE=/proc/cmdline
+
+part_bootname() {
+	case "$1" in
+		02 | 2) printf 'slot-a\n' ;;
+		03 | 3) printf 'slot-b\n' ;;
+		*) return 1 ;;
+	esac
+}
+
+# the bootname is the os_prefix directory name, without the trailing slash
+primary_bootname() {
+	sed -nE 's#^[[:space:]]*os_prefix=([^[:space:]/]+)/.*#\1#p' "${CONFIG}" |
+		tr -d '\r' | head -n1
+}
+
+# the partition number is the last field of an MBR PARTUUID
+booted_bootname() {
+	# shellcheck disable=SC2013
+	for param in $(cat "${PROC_CMDLINE}"); do
+		case "${param}" in
+			root=PARTUUID=*-*)
+				part_bootname "${param##*-}"
+				return
+				;;
+		esac
+	done
+	return 1
+}
+
+slot_state() {
+	_state=good
+	if [ -r "${STATE_DIR}/$1.state" ]; then
+		read -r _state < "${STATE_DIR}/$1.state" || _state=good
+	fi
+
+	case "${_state}" in
+		good | bad) printf '%s\n' "${_state}" ;;
+		*) printf 'good\n' ;;
+	esac
+}
+
+case "${1:-}" in
+	get-primary)
+		_primary="$(primary_bootname)"
+		[ -n "${_primary}" ] || exit 1
+		printf '%s\n' "${_primary}"
+		;;
+	get-current)
+		booted_bootname
+		;;
+	get-state)
+		[ -n "${2:-}" ] || exit 1
+		slot_state "$2"
+		;;
+	set-primary | set-state)
+		echo "os-prefix-backend: $1 is not enabled yet, use slot-switch" >&2
+		exit 1
+		;;
+	*)
+		echo "os-prefix-backend: unknown command: ${1:-<none>}" >&2
+		exit 1
+		;;
+esac
