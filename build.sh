@@ -209,6 +209,8 @@ export DISK_ID=${DISK_ID:-0xc0ffee01}
 export ROOT_SLOT_PREFIX=${ROOT_SLOT_PREFIX:-slot-a/}
 export RAUC_COMPATIBLE=${RAUC_COMPATIBLE:-"metarstation-${ARCH}"}
 export RAUC_KEYRING_FILE=${RAUC_KEYRING_FILE:-}
+export RAUC_CERT_FILE=${RAUC_CERT_FILE:-}
+export RAUC_KEY_FILE=${RAUC_KEY_FILE:-}
 export LOG_FILE="${WORK_DIR}/build.log"
 
 export TARGET_HOSTNAME=${TARGET_HOSTNAME:-raspberrypi}

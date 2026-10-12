@@ -101,6 +101,17 @@ Everything upstream pi-gen supports in `config` still applies. This fork adds:
   installed as `/etc/rauc/keyring.pem` and referenced from `system.conf`. Leave
   it unset and the `[keyring]` section is omitted.
 
+* `RAUC_CERT_FILE` and `RAUC_KEY_FILE` (Default: unset)
+
+  Paths on the build host to the certificate and the private key that sign update
+  bundles. With both set the build deploys one more artifact,
+  `<IMG_FILENAME><IMG_SUFFIX>.raucb`: a signed RAUC bundle wrapping the root slot
+  image, versioned `<IMG_DATE>-<short git hash>` and compressed with zstd, which
+  the station can verify and install. With either one unset no bundle is built.
+  Requires `DEPLOY_ROOTFS_SLOT=1`, since the bundle is made of that image. If
+  `RAUC_KEYRING_FILE` is set too, the bundle is verified against it right after
+  signing.
+
 Two upstream variables behave differently here:
 
 * `ARCHIVE_FILENAME` is **gone**. Compressed artifacts are named after `IMG_FILENAME`.

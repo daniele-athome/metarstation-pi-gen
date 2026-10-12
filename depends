@@ -22,3 +22,5 @@ bc
 gpg
 pigz
 arch-test
+rauc
+mksquashfs:squashfs-tools
