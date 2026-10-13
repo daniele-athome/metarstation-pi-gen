@@ -1,0 +1,175 @@
+#!/bin/sh
+# RAUC slot hook: build the installed slot's os_prefix directory on the boot
+# partition.
+
+set -eu
+
+BOOT_DIR=/boot/firmware
+CONFIG="${BOOT_DIR}/config.txt"
+
+die() {
+	echo "bundle-hook: $*" >&2
+	exit 1
+}
+
+warn() {
+	echo "bundle-hook: $*" >&2
+}
+
+info() {
+	echo "bundle-hook: $*"
+}
+
+case "${1:-}" in
+	slot-post-install) ;;
+	*) die "unexpected hook command: ${1:-<none>}" ;;
+esac
+
+[ "${RAUC_SLOT_CLASS:-}" = rootfs ] || exit 0
+
+MNT="${RAUC_SLOT_MOUNT_POINT:-}"
+PREFIX="${RAUC_SLOT_BOOTNAME:-}"
+
+# safety checks
+[ -n "${MNT}" ] || die "RAUC_SLOT_MOUNT_POINT is not set"
+[ -n "${PREFIX}" ] || die "RAUC_SLOT_BOOTNAME is not set"
+[ -d "${MNT}/usr/lib/modules" ] || die "${MNT} has no /usr/lib/modules: not a slot image"
+
+PARTUUID="$(lsblk -rno PARTUUID "${RAUC_SLOT_DEVICE}" 2> /dev/null | head -n1)"
+[ -n "${PARTUUID}" ] || die "cannot read the PARTUUID of ${RAUC_SLOT_DEVICE}"
+
+# retrieve the current slot name directly from config.txt (os_prefix=slot-X/)
+ACTIVE_PREFIX=""
+if [ -r "${CONFIG}" ]; then
+	ACTIVE_PREFIX="$(sed -nE 's/^[[:space:]]*os_prefix=([^[:space:]]*).*/\1/p' "${CONFIG}" |
+		tr -d '\r' | head -n1)"
+fi
+ACTIVE_CMDLINE="${BOOT_DIR}/${ACTIVE_PREFIX}cmdline.txt"
+[ -f "${ACTIVE_CMDLINE}" ] || die "cannot read the active ${ACTIVE_CMDLINE}"
+
+MODULES="${MNT}/usr/lib/modules"
+STAGING="${BOOT_DIR}/${PREFIX}.new"
+BOOT_REMOUNTED=no
+
+cleanup() {
+	[ -z "${STAGING}" ] || rm -rf "${STAGING}" || :
+	if [ "${BOOT_REMOUNTED}" = yes ]; then
+		sync
+		mount -o remount,ro "${BOOT_DIR}" || warn "cannot restore ${BOOT_DIR} read-only"
+	fi
+}
+trap cleanup EXIT
+
+# check that everything needed exists (and get their size)
+SIZE_PATHS=""
+for KERNEL in "${MNT}"/boot/vmlinuz-*; do
+	[ -e "${KERNEL}" ] || continue
+	VERSION="${KERNEL##*/vmlinuz-}"
+	SIZE_PATHS="${SIZE_PATHS} ${KERNEL}"
+	[ ! -f "${MNT}/boot/initrd.img-${VERSION}" ] ||
+		SIZE_PATHS="${SIZE_PATHS} ${MNT}/boot/initrd.img-${VERSION}"
+	[ ! -d "${MODULES}/${VERSION}/dtb" ] ||
+		SIZE_PATHS="${SIZE_PATHS} ${MODULES}/${VERSION}/dtb"
+done
+
+[ -n "${SIZE_PATHS}" ] || die "${MNT} has no /boot/vmlinuz-*"
+
+# shellcheck disable=SC2086
+NEEDED="$(du -scb ${SIZE_PATHS} | tail -n1 | cut -f1)"
+AVAILABLE="$(df -B1 --output=avail "${BOOT_DIR}" | tail -n1)"
+
+if [ "${NEEDED}" -gt "${AVAILABLE}" ]; then
+	die "need $((NEEDED / 1024 / 1024)) MiB on ${BOOT_DIR} but only $((AVAILABLE / 1024 / 1024)) MiB are free"
+fi
+
+if findmnt -no OPTIONS "${BOOT_DIR}" | grep -qE '(^|,)ro(,|$)'; then
+	mount -o remount,rw "${BOOT_DIR}" || die "cannot remount ${BOOT_DIR} read-write"
+	BOOT_REMOUNTED=yes
+fi
+
+rm -rf "${STAGING}"
+mkdir -p "${STAGING}/overlays"
+
+# the raspberry-specific part: kernel and initramfs must have precise names
+for KERNEL in "${MNT}"/boot/vmlinuz-*; do
+	[ -e "${KERNEL}" ] || continue
+	VERSION="${KERNEL##*/vmlinuz-}"
+	FLAVOUR="${VERSION#*-rpi-}"
+	SUFFIX="$(printf '%s' "${FLAVOUR}" | sed 's/^v//;s/^6//;s/2712/_2712/;s/-/_/;')"
+
+	case "${FLAVOUR}" in
+		v8 | v8-rt | 2712) DTB_DIR="${MODULES}/${VERSION}/dtb/broadcom" ;;
+		v6 | v7) DTB_DIR="${MODULES}/${VERSION}/dtb" ;;
+		*)
+			warn "unsupported kernel flavour ${FLAVOUR}, skipping ${VERSION}"
+			continue
+			;;
+	esac
+
+	cp "${KERNEL}" "${STAGING}/kernel${SUFFIX}.img"
+
+	if [ -f "${MNT}/boot/initrd.img-${VERSION}" ]; then
+		cp "${MNT}/boot/initrd.img-${VERSION}" "${STAGING}/initramfs${SUFFIX}"
+	else
+		warn "no initrd.img-${VERSION}: ${VERSION} will boot without an initramfs"
+	fi
+
+	for DTB in "${DTB_DIR}"/bcm*.dtb; do
+		[ -e "${DTB}" ] || continue
+		cp "${DTB}" "${STAGING}/"
+	done
+
+	for OVERLAY in "${MODULES}/${VERSION}"/dtb/overlays/*.dtb* \
+		"${MODULES}/${VERSION}"/dtb/overlays/README; do
+		[ -e "${OVERLAY}" ] || continue
+		cp "${OVERLAY}" "${STAGING}/overlays/"
+	done
+
+	info "payload: ${VERSION} -> kernel${SUFFIX}.img"
+done
+
+# the active command line with root= and rauc.slot= moved onto this slot:
+# generating it from scratch would drop overlayroot= and the regulatory domain
+# FIXME technically unsafe: cmdline should come from the bundle, not from the live system
+NEW_CMDLINE=""
+HAS_ROOT=no
+HAS_SLOT=no
+for PARAM in $(tr -d '\r' < "${ACTIVE_CMDLINE}"); do
+	case "${PARAM}" in
+		root=*)
+			PARAM="root=PARTUUID=${PARTUUID}"
+			HAS_ROOT=yes
+			;;
+		rauc.slot=*)
+			PARAM="rauc.slot=${PREFIX}"
+			HAS_SLOT=yes
+			;;
+	esac
+	NEW_CMDLINE="${NEW_CMDLINE:+${NEW_CMDLINE} }${PARAM}"
+done
+
+[ "${HAS_ROOT}" = yes ] || die "no root= in ${ACTIVE_CMDLINE}"
+# handle a previously missing rauc.slot gracefully
+[ "${HAS_SLOT}" = yes ] || NEW_CMDLINE="${NEW_CMDLINE} rauc.slot=${PREFIX}"
+
+printf '%s\n' "${NEW_CMDLINE}" > "${STAGING}/cmdline.txt"
+
+# an incomplete directory would be a silent fallback to the boot partition root
+[ -f "${STAGING}/cmdline.txt" ] || die "no cmdline.txt staged"
+for STAGED in "${STAGING}"/kernel*.img; do
+	[ -e "${STAGED}" ] || die "no kernel staged for ${PREFIX}"
+	break
+done
+
+# two renames, so the directory is never partly present under its real name
+TARGET="${BOOT_DIR}/${PREFIX}"
+if [ -e "${TARGET}" ]; then
+	rm -rf "${TARGET}.old"
+	mv "${TARGET}" "${TARGET}.old"
+fi
+mv "${STAGING}" "${TARGET}"
+STAGING=""
+rm -rf "${TARGET}.old"
+sync
+
+info "${PREFIX}/ installed on ${BOOT_DIR}, root=PARTUUID=${PARTUUID}"

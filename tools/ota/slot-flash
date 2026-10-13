@@ -296,7 +296,7 @@ for KERNEL in "${KERNELS[@]}"; do
   fi
 
   shopt -s nullglob
-  for DTB in "${DTB_DIR}"/bcm27*.dtb; do
+  for DTB in "${DTB_DIR}"/bcm*.dtb; do
     cp "${DTB}" "${STAGING}/"
   done
   for OVERLAY in "${MODULES}/${VERSION}"/dtb/overlays/*.dtb* \

@@ -38,6 +38,9 @@ install -d -m 0755 "${BUNDLE_DIR}"
 # a hard link: mksquashfs only reads it, so copying the slot again buys nothing
 ln "${SLOT_FILE}" "${BUNDLE_DIR}/rootfs.ext4"
 
+# hook for building the slot directory on the boot partition
+install -m 0755 files/bundle-hook "${BUNDLE_DIR}/hook"
+
 # the date alone is not a version: two builds a day would be indistinguishable
 cat > "${BUNDLE_DIR}/manifest.raucm" << EOF
 [update]
@@ -47,9 +50,13 @@ version=${IMG_DATE}${GIT_HASH:+-${GIT_HASH:0:7}}
 [bundle]
 format=verity
 
+[hooks]
+filename=hook
+
 [image.rootfs]
 filename=rootfs.ext4
 adaptive=block-hash-index
+hooks=post-install
 EOF
 
 mkdir -p "${DEPLOY_DIR}"
