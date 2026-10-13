@@ -98,6 +98,14 @@ if [ "${MOVED}" = 0 ]; then
 	exit 1
 fi
 
+BOOTDATA="${ROOTFS_DIR}/usr/lib/bootdata"
+
+install -d -m 755 "${BOOTDATA}"
+sed -E -e 's/(^|[[:space:]])root=[^[:space:]]*/\1root=ROOTDEV/' \
+	-e 's/(^|[[:space:]])rauc\.slot=[^[:space:]]*/\1rauc.slot=SLOTNAME/' \
+	"${SLOT_DIR}/cmdline.txt" > "${BOOTDATA}/cmdline.txt"
+chmod 644 "${BOOTDATA}/cmdline.txt"
+
 CONFIG="${BOOT_DIR}/config.txt"
 
 # ahead of every conditional filter, so that it applies to all models

@@ -126,7 +126,6 @@ active_prefix() {
 }
 
 ACTIVE_PREFIX="$(active_prefix)"
-ACTIVE_CMDLINE="${BOOT_DIR}/${ACTIVE_PREFIX}cmdline.txt"
 
 case "${RUNNING_PART}" in
   "${SLOT_A_PART}") RUNNING_SLOT=a ;;
@@ -154,8 +153,6 @@ fi
 if [ "${ACTIVE_PREFIX}" = "${TARGET_PREFIX}/" ]; then
   warn "config.txt already boots ${TARGET_PREFIX}, which is about to be rebuilt"
 fi
-
-[ -f "${ACTIVE_CMDLINE}" ] || die "cannot read the active ${ACTIVE_CMDLINE}"
 
 if ! is_url "${SOURCE}"; then
   [ -r "${SOURCE}" ] || die "cannot read ${SOURCE}"
@@ -310,23 +307,31 @@ for KERNEL in "${KERNELS[@]}"; do
   info "payload: ${VERSION} -> kernel${SUFFIX}.img"
 done
 
-# The active command line with only root= moved: generating it from scratch would
-# drop overlayroot= and the Wi-Fi regulatory domain, both added during the build.
-NEW_ROOT="PARTUUID=${DISK_ID}-0${TARGET_PART}"
-OLD_ROOT="$(cmdline_param root "${ACTIVE_CMDLINE}")" ||
-  die "no root= in ${ACTIVE_CMDLINE}"
-CMDLINE_TEXT="$(tr -d '\r' < "${ACTIVE_CMDLINE}")"
-NEW_CMDLINE="${CMDLINE_TEXT//${OLD_ROOT}/${NEW_ROOT}}"
+# The command line comes from the image we just wrote, in step with its kernel;
+# the one on the boot partition has whatever drift the card accumulated.
+TEMPLATE="${MNT}/usr/lib/bootdata/cmdline.txt"
+[ -f "${TEMPLATE}" ] || die "${TEMPLATE} is missing: not a slot image of this build"
 
-[ "${NEW_CMDLINE}" != "${CMDLINE_TEXT}" ] ||
-  die "could not replace ${OLD_ROOT} in ${ACTIVE_CMDLINE}"
+NEW_CMDLINE=""
+HAS_ROOT=no
+HAS_SLOT=no
+for PARAM in $(tr -d '\r' < "${TEMPLATE}"); do
+  case "${PARAM}" in
+    root=ROOTDEV)
+      PARAM="root=PARTUUID=${DISK_ID}-0${TARGET_PART}"
+      HAS_ROOT=yes
+      ;;
+    rauc.slot=SLOTNAME)
+      PARAM="rauc.slot=${TARGET_PREFIX}"
+      HAS_SLOT=yes
+      ;;
+  esac
+  NEW_CMDLINE="${NEW_CMDLINE:+${NEW_CMDLINE} }${PARAM}"
+done
 
-# TODO starting ruac 1.15, the backend is queried if "ruac.slot" is not found in cmdline
-if OLD_RAUC_SLOT="$(cmdline_param rauc.slot "${ACTIVE_CMDLINE}")"; then
-  NEW_CMDLINE="${NEW_CMDLINE//rauc.slot=${OLD_RAUC_SLOT}/rauc.slot=${TARGET_PREFIX}}"
-else
-  NEW_CMDLINE="${NEW_CMDLINE} rauc.slot=${TARGET_PREFIX}"
-fi
+# an unsubstituted placeholder is better than a slot pointing at the other one
+[ "${HAS_ROOT}" = yes ] || die "no root=ROOTDEV in ${TEMPLATE}"
+[ "${HAS_SLOT}" = yes ] || die "no rauc.slot=SLOTNAME in ${TEMPLATE}"
 
 printf '%s\n' "${NEW_CMDLINE}" > "${STAGING}/cmdline.txt"
 

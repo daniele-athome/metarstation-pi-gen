@@ -5,7 +5,6 @@
 set -eu
 
 BOOT_DIR=/boot/firmware
-CONFIG="${BOOT_DIR}/config.txt"
 
 die() {
 	echo "bundle-hook: $*" >&2
@@ -38,14 +37,8 @@ PREFIX="${RAUC_SLOT_BOOTNAME:-}"
 PARTUUID="$(lsblk -rno PARTUUID "${RAUC_SLOT_DEVICE}" 2> /dev/null | head -n1)"
 [ -n "${PARTUUID}" ] || die "cannot read the PARTUUID of ${RAUC_SLOT_DEVICE}"
 
-# retrieve the current slot name directly from config.txt (os_prefix=slot-X/)
-ACTIVE_PREFIX=""
-if [ -r "${CONFIG}" ]; then
-	ACTIVE_PREFIX="$(sed -nE 's/^[[:space:]]*os_prefix=([^[:space:]]*).*/\1/p' "${CONFIG}" |
-		tr -d '\r' | head -n1)"
-fi
-ACTIVE_CMDLINE="${BOOT_DIR}/${ACTIVE_PREFIX}cmdline.txt"
-[ -f "${ACTIVE_CMDLINE}" ] || die "cannot read the active ${ACTIVE_CMDLINE}"
+TEMPLATE="${MNT}/usr/lib/bootdata/cmdline.txt"
+[ -f "${TEMPLATE}" ] || die "${TEMPLATE} is missing: not a slot image of this build"
 
 MODULES="${MNT}/usr/lib/modules"
 STAGING="${BOOT_DIR}/${PREFIX}.new"
@@ -128,29 +121,18 @@ for KERNEL in "${MNT}"/boot/vmlinuz-*; do
 	info "payload: ${VERSION} -> kernel${SUFFIX}.img"
 done
 
-# the active command line with root= and rauc.slot= moved onto this slot:
-# generating it from scratch would drop overlayroot= and the regulatory domain
-# FIXME technically unsafe: cmdline should come from the bundle, not from the live system
 NEW_CMDLINE=""
-HAS_ROOT=no
-HAS_SLOT=no
-for PARAM in $(tr -d '\r' < "${ACTIVE_CMDLINE}"); do
+for PARAM in $(tr -d '\r' < "${TEMPLATE}"); do
 	case "${PARAM}" in
-		root=*)
+		root=ROOTDEV)
 			PARAM="root=PARTUUID=${PARTUUID}"
-			HAS_ROOT=yes
 			;;
-		rauc.slot=*)
+		rauc.slot=SLOTNAME)
 			PARAM="rauc.slot=${PREFIX}"
-			HAS_SLOT=yes
 			;;
 	esac
 	NEW_CMDLINE="${NEW_CMDLINE:+${NEW_CMDLINE} }${PARAM}"
 done
-
-[ "${HAS_ROOT}" = yes ] || die "no root= in ${ACTIVE_CMDLINE}"
-# handle a previously missing rauc.slot gracefully
-[ "${HAS_SLOT}" = yes ] || NEW_CMDLINE="${NEW_CMDLINE} rauc.slot=${PREFIX}"
 
 printf '%s\n' "${NEW_CMDLINE}" > "${STAGING}/cmdline.txt"
 
