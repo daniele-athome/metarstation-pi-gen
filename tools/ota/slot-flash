@@ -27,7 +27,7 @@ usage() {
 usage: ${0##*/} --slot a|b <url|file>
 
   --slot a|b   the slot to write; must not be the running one
-  <url|file>   the .rootfs.img, .rootfs.img.xz or .rootfs.img.gz
+  <url|file>   the .rootfs.img[.xz|.gz|.zst]
 EOF
   exit "${1:-2}"
 }
@@ -194,7 +194,7 @@ boot_rw() {
   fi
 }
 
-# the build ships <name>.rootfs.bmap next to <name>.rootfs.img[.xz|.gz]
+# the build ships <name>.rootfs.bmap next to <name>.rootfs.img[.xz|.gz|.zst]
 bmap_sibling() {
   local base="$1"
   base="${base%.xz}"
