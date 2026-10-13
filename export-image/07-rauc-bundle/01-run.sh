@@ -49,6 +49,7 @@ format=verity
 
 [image.rootfs]
 filename=rootfs.ext4
+adaptive=block-hash-index
 EOF
 
 mkdir -p "${DEPLOY_DIR}"
@@ -61,9 +62,10 @@ else
 	log "RAUC_KEYRING_FILE unset: the bundle signature is not checked against it"
 fi
 
+# TODO test optimal block size on production
 rauc bundle \
 	"${RAUC_ARGS[@]}" \
-	--mksquashfs-args="-comp zstd -Xcompression-level 19" \
+	--mksquashfs-args="-comp zstd -Xcompression-level 19 -b 64k" \
 	"${BUNDLE_DIR}" "${BUNDLE}"
 
 rm -rf "${BUNDLE_DIR}"

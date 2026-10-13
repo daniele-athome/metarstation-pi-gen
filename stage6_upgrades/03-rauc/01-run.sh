@@ -69,5 +69,9 @@ sed -i -E -e 's/(^|[[:space:]])rauc\.slot=[^[:space:]]*[[:space:]]?/\1/g' \
           -e "s|^|rauc.slot=${BOOTNAME} |" \
           "${ROOTFS_DIR}/boot/firmware/cmdline.txt"
 
-# persistent status directory for RAUC
+# persistent status directory for RAUC, and the block indexes of adaptive updates
 install -m 0644 files/tmpfiles.data-rauc.conf "${ROOTFS_DIR}/etc/tmpfiles.d/data-rauc.conf"
+
+# streaming installs need the NBD module present
+install -d -m 0755 "${ROOTFS_DIR}/etc/modules-load.d"
+install -m 0644 files/modules-load.nbd.conf "${ROOTFS_DIR}/etc/modules-load.d/nbd.conf"
