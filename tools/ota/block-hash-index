@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+# Generates a hash block index for a RAUC slot image.
+# Usage: ./block-hash-index <block-dev|image-file> <index-file>
+
+import hashlib, sys
+from pathlib import Path
+BLOCK, BATCH = 4096, 4 << 20
+ZERO, ZH = bytes(BLOCK), hashlib.sha256(bytes(BLOCK)).digest()
+src, out = Path(sys.argv[1]), Path(sys.argv[2])
+with src.open("rb") as fd:
+    size = fd.seek(0, 2); fd.seek(0)
+    assert size and size % BLOCK == 0, f"{size} not a multiple of {BLOCK}"
+    d = bytearray()
+    while buf := fd.read(BATCH):
+        for o in range(0, len(buf), BLOCK):
+            c = buf[o:o + BLOCK]
+            d += ZH if c == ZERO else hashlib.sha256(c).digest()
+out.write_bytes(bytes(d))
+print(f"{out}: {len(d) // 32} blocks, {len(d)} byte")
