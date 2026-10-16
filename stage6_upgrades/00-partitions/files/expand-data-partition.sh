@@ -22,8 +22,8 @@ DISK="/dev/$(basename "$(readlink -f "${SYSFS}/..")")"
 
 echo "expand-data-partition: growing ${DISK} partition ${PARTNUM} (${MOUNTPOINT})"
 
-# exit status 2 means "nothing to do": the partition already fills the device
-growpart "${DISK}" "${PARTNUM}" || [ $? -eq 2 ]
+# exit status 1 means "nothing to do": the partition already fills the device
+growpart "${DISK}" "${PARTNUM}" || [ $? -eq 1 ]
 
 # grow the filesystem into whatever space the partition gained
 resize2fs "${DEV}"
