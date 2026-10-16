@@ -61,8 +61,28 @@ case "${1:-}" in
 		[ -n "${2:-}" ] || exit 1
 		slot_state "$2"
 		;;
-	set-primary | set-state)
-		echo "os-prefix-backend: $1 is not enabled yet, use slot-switch" >&2
+	set-state)
+		case "${2:-}" in
+			slot-a | slot-b) ;;
+			*)
+				echo "os-prefix-backend: not a bootname: ${2:-<none>}" >&2
+				exit 1
+				;;
+		esac
+		case "${3:-}" in
+			good | bad) ;;
+			*)
+				echo "os-prefix-backend: not a state: ${3:-<none>}" >&2
+				exit 1
+				;;
+		esac
+		# written aside and renamed, so get-state never reads a partial file
+		mkdir -p "${STATE_DIR}"
+		printf '%s\n' "$3" > "${STATE_DIR}/$2.state.new"
+		mv "${STATE_DIR}/$2.state.new" "${STATE_DIR}/$2.state"
+		;;
+	set-primary)
+		echo "os-prefix-backend: set-primary is not enabled, use slot-switch" >&2
 		exit 1
 		;;
 	*)
