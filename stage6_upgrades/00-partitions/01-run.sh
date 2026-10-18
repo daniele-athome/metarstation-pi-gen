@@ -9,10 +9,10 @@ DATA_FSTAB_LINE="DATADEV  /data           ext4    ${DATA_FSTAB_OPTS}  0       2"
 
 if grep -qE '^DATADEV[[:space:]]' "${FSTAB}"; then
   # replace the existing line with the device placeholder
-	sed -i -E "s|^DATADEV[[:space:]].*|${DATA_FSTAB_LINE}|" "${FSTAB}"
+  sed -i -E "s|^DATADEV[[:space:]].*|${DATA_FSTAB_LINE}|" "${FSTAB}"
 else
   # add a new line
-	printf '%s\n' "${DATA_FSTAB_LINE}" >>"${FSTAB}"
+  printf '%s\n' "${DATA_FSTAB_LINE}" >>"${FSTAB}"
 fi
 
 # Configure the boot partition as read only

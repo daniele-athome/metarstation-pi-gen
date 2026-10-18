@@ -12,14 +12,14 @@ rm -rf "${NOOBS_DIR}"
 echo "Creating loop device..."
 cnt=0
 until ensure_next_loopdev && LOOP_DEV="$(losetup --show --find --partscan "$IMG_FILE")"; do
-	if [ $cnt -lt 5 ]; then
-		cnt=$((cnt + 1))
-		echo "Error in losetup.  Retrying..."
-		sleep 5
-	else
-		echo "ERROR: losetup failed; exiting"
-		exit 1
-	fi
+  if [ $cnt -lt 5 ]; then
+    cnt=$((cnt + 1))
+    echo "Error in losetup.  Retrying..."
+    sleep 5
+  else
+    echo "ERROR: losetup failed; exiting"
+    exit 1
+  fi
 done
 
 ensure_loopdev_partitions "$LOOP_DEV"

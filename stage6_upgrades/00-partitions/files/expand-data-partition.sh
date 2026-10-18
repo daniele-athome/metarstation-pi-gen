@@ -6,15 +6,15 @@ set -e
 MOUNTPOINT="${1:-/data}"
 
 if ! DEV="$(findmnt -no SOURCE "${MOUNTPOINT}")"; then
-	echo "expand-data-partition: ${MOUNTPOINT} is not mounted, nothing to do" >&2
-	exit 0
+  echo "expand-data-partition: ${MOUNTPOINT} is not mounted, nothing to do" >&2
+  exit 0
 fi
 
 SYSFS="/sys/class/block/$(basename "${DEV}")"
 
 if [ ! -r "${SYSFS}/partition" ]; then
-	echo "expand-data-partition: ${DEV} is not a partition, refusing to grow it" >&2
-	exit 1
+  echo "expand-data-partition: ${DEV} is not a partition, refusing to grow it" >&2
+  exit 1
 fi
 
 PARTNUM="$(cat "${SYSFS}/partition")"

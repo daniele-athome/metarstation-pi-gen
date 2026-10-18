@@ -3,8 +3,8 @@
 # Configure SSH
 
 if [[ -z "${PUBKEY_SSH_CA}" ]]; then
-	echo "Must set 'PUBKEY_SSH_CA' to a valid SSH CA public key."
-	exit 1
+  echo "Must set 'PUBKEY_SSH_CA' to a valid SSH CA public key."
+  exit 1
 fi
 
 cat >"${ROOTFS_DIR}/etc/ssh/sshd_config.d/auth.conf" << EOF

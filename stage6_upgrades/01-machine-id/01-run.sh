@@ -7,15 +7,15 @@
 
 # our initramfs script runs after the one that sets the overlay up
 if [ ! -e "${ROOTFS_DIR}/usr/share/initramfs-tools/scripts/init-bottom/overlayroot" ]; then
-	echo "The overlayroot initramfs script is missing: the machine ID cannot be restored." >&2
-	exit 1
+  echo "The overlayroot initramfs script is missing: the machine ID cannot be restored." >&2
+  exit 1
 fi
 
 install -m 644 files/machine-id-defaults "${ROOTFS_DIR}/etc/default/machine-id"
 
 install -d "${ROOTFS_DIR}/etc/initramfs-tools/scripts/init-bottom"
 install -m 755 files/initramfs-machine-id.sh \
-	"${ROOTFS_DIR}/etc/initramfs-tools/scripts/init-bottom/machine-id"
+  "${ROOTFS_DIR}/etc/initramfs-tools/scripts/init-bottom/machine-id"
 
 install -m 755 files/save-machine-id.sh "${ROOTFS_DIR}/usr/local/sbin/save-machine-id"
 install -m 644 files/save-machine-id.service "${ROOTFS_DIR}/etc/systemd/system/save-machine-id.service"

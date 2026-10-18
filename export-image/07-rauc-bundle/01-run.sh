@@ -4,28 +4,28 @@
 # certificate and key are given.
 
 if [ -z "${RAUC_CERT_FILE}" ] || [ -z "${RAUC_KEY_FILE}" ]; then
-	log "RAUC_CERT_FILE/RAUC_KEY_FILE unset: no update bundle built"
-	exit 0
+  log "RAUC_CERT_FILE/RAUC_KEY_FILE unset: no update bundle built"
+  exit 0
 fi
 
 for KEYFILE in "${RAUC_CERT_FILE}" "${RAUC_KEY_FILE}"; do
-	if [ ! -r "${KEYFILE}" ]; then
-		echo "ERROR: cannot read ${KEYFILE}" >&2
-		exit 1
-	fi
+  if [ ! -r "${KEYFILE}" ]; then
+    echo "ERROR: cannot read ${KEYFILE}" >&2
+    exit 1
+  fi
 done
 
 # the bundle is carved out of what 06-rootfs-slot leaves behind
 if [ "${DEPLOY_ROOTFS_SLOT}" != "1" ]; then
-	echo "ERROR: the bundle needs the root slot image, so DEPLOY_ROOTFS_SLOT=1 is required" >&2
-	exit 1
+  echo "ERROR: the bundle needs the root slot image, so DEPLOY_ROOTFS_SLOT=1 is required" >&2
+  exit 1
 fi
 
 SLOT_FILE="${STAGE_WORK_DIR}/${IMG_FILENAME}${IMG_SUFFIX}.rootfs.img"
 
 if [ ! -f "${SLOT_FILE}" ]; then
-	echo "ERROR: ${SLOT_FILE} does not exist" >&2
-	exit 1
+  echo "ERROR: ${SLOT_FILE} does not exist" >&2
+  exit 1
 fi
 
 BUNDLE_DIR="${STAGE_WORK_DIR}/bundle"
@@ -64,16 +64,16 @@ mkdir -p "${DEPLOY_DIR}"
 RAUC_ARGS=(--cert="${RAUC_CERT_FILE}" --key="${RAUC_KEY_FILE}")
 
 if [ -n "${RAUC_KEYRING_FILE}" ]; then
-	RAUC_ARGS+=(--keyring="${RAUC_KEYRING_FILE}")
+  RAUC_ARGS+=(--keyring="${RAUC_KEYRING_FILE}")
 else
-	log "RAUC_KEYRING_FILE unset: the bundle signature is not checked against it"
+  log "RAUC_KEYRING_FILE unset: the bundle signature is not checked against it"
 fi
 
 # TODO test optimal block size on production
 rauc bundle \
-	"${RAUC_ARGS[@]}" \
-	--mksquashfs-args="-comp zstd -Xcompression-level 19 -b 64k" \
-	"${BUNDLE_DIR}" "${BUNDLE}"
+  "${RAUC_ARGS[@]}" \
+  --mksquashfs-args="-comp zstd -Xcompression-level 19 -b 64k" \
+  "${BUNDLE_DIR}" "${BUNDLE}"
 
 rm -rf "${BUNDLE_DIR}"
 

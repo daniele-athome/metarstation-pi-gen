@@ -7,21 +7,21 @@ set -eu
 BOOT_DIR=/boot/firmware
 
 die() {
-	echo "bundle-hook: $*" >&2
-	exit 1
+  echo "bundle-hook: $*" >&2
+  exit 1
 }
 
 warn() {
-	echo "bundle-hook: $*" >&2
+  echo "bundle-hook: $*" >&2
 }
 
 info() {
-	echo "bundle-hook: $*"
+  echo "bundle-hook: $*"
 }
 
 case "${1:-}" in
-	slot-post-install) ;;
-	*) die "unexpected hook command: ${1:-<none>}" ;;
+  slot-post-install) ;;
+  *) die "unexpected hook command: ${1:-<none>}" ;;
 esac
 
 [ "${RAUC_SLOT_CLASS:-}" = rootfs ] || exit 0
@@ -45,24 +45,24 @@ STAGING="${BOOT_DIR}/${PREFIX}.new"
 BOOT_REMOUNTED=no
 
 cleanup() {
-	[ -z "${STAGING}" ] || rm -rf "${STAGING}" || :
-	if [ "${BOOT_REMOUNTED}" = yes ]; then
-		sync
-		mount -o remount,ro "${BOOT_DIR}" || warn "cannot restore ${BOOT_DIR} read-only"
-	fi
+  [ -z "${STAGING}" ] || rm -rf "${STAGING}" || :
+  if [ "${BOOT_REMOUNTED}" = yes ]; then
+    sync
+    mount -o remount,ro "${BOOT_DIR}" || warn "cannot restore ${BOOT_DIR} read-only"
+  fi
 }
 trap cleanup EXIT
 
 # check that everything needed exists (and get their size)
 SIZE_PATHS=""
 for KERNEL in "${MNT}"/boot/vmlinuz-*; do
-	[ -e "${KERNEL}" ] || continue
-	VERSION="${KERNEL##*/vmlinuz-}"
-	SIZE_PATHS="${SIZE_PATHS} ${KERNEL}"
-	[ ! -f "${MNT}/boot/initrd.img-${VERSION}" ] ||
-		SIZE_PATHS="${SIZE_PATHS} ${MNT}/boot/initrd.img-${VERSION}"
-	[ ! -d "${MODULES}/${VERSION}/dtb" ] ||
-		SIZE_PATHS="${SIZE_PATHS} ${MODULES}/${VERSION}/dtb"
+  [ -e "${KERNEL}" ] || continue
+  VERSION="${KERNEL##*/vmlinuz-}"
+  SIZE_PATHS="${SIZE_PATHS} ${KERNEL}"
+  [ ! -f "${MNT}/boot/initrd.img-${VERSION}" ] ||
+    SIZE_PATHS="${SIZE_PATHS} ${MNT}/boot/initrd.img-${VERSION}"
+  [ ! -d "${MODULES}/${VERSION}/dtb" ] ||
+    SIZE_PATHS="${SIZE_PATHS} ${MODULES}/${VERSION}/dtb"
 done
 
 [ -n "${SIZE_PATHS}" ] || die "${MNT} has no /boot/vmlinuz-*"
@@ -72,12 +72,12 @@ NEEDED="$(du -scb ${SIZE_PATHS} | tail -n1 | cut -f1)"
 AVAILABLE="$(df -B1 --output=avail "${BOOT_DIR}" | tail -n1)"
 
 if [ "${NEEDED}" -gt "${AVAILABLE}" ]; then
-	die "need $((NEEDED / 1024 / 1024)) MiB on ${BOOT_DIR} but only $((AVAILABLE / 1024 / 1024)) MiB are free"
+  die "need $((NEEDED / 1024 / 1024)) MiB on ${BOOT_DIR} but only $((AVAILABLE / 1024 / 1024)) MiB are free"
 fi
 
 if findmnt -no OPTIONS "${BOOT_DIR}" | grep -qE '(^|,)ro(,|$)'; then
-	mount -o remount,rw "${BOOT_DIR}" || die "cannot remount ${BOOT_DIR} read-write"
-	BOOT_REMOUNTED=yes
+  mount -o remount,rw "${BOOT_DIR}" || die "cannot remount ${BOOT_DIR} read-write"
+  BOOT_REMOUNTED=yes
 fi
 
 rm -rf "${STAGING}"
@@ -85,53 +85,53 @@ mkdir -p "${STAGING}/overlays"
 
 # the raspberry-specific part: kernel and initramfs must have precise names
 for KERNEL in "${MNT}"/boot/vmlinuz-*; do
-	[ -e "${KERNEL}" ] || continue
-	VERSION="${KERNEL##*/vmlinuz-}"
-	FLAVOUR="${VERSION#*-rpi-}"
-	SUFFIX="$(printf '%s' "${FLAVOUR}" | sed 's/^v//;s/^6//;s/2712/_2712/;s/-/_/;')"
+  [ -e "${KERNEL}" ] || continue
+  VERSION="${KERNEL##*/vmlinuz-}"
+  FLAVOUR="${VERSION#*-rpi-}"
+  SUFFIX="$(printf '%s' "${FLAVOUR}" | sed 's/^v//;s/^6//;s/2712/_2712/;s/-/_/;')"
 
-	case "${FLAVOUR}" in
-		v8 | v8-rt | 2712) DTB_DIR="${MODULES}/${VERSION}/dtb/broadcom" ;;
-		v6 | v7) DTB_DIR="${MODULES}/${VERSION}/dtb" ;;
-		*)
-			warn "unsupported kernel flavour ${FLAVOUR}, skipping ${VERSION}"
-			continue
-			;;
-	esac
+  case "${FLAVOUR}" in
+    v8 | v8-rt | 2712) DTB_DIR="${MODULES}/${VERSION}/dtb/broadcom" ;;
+    v6 | v7) DTB_DIR="${MODULES}/${VERSION}/dtb" ;;
+    *)
+      warn "unsupported kernel flavour ${FLAVOUR}, skipping ${VERSION}"
+      continue
+      ;;
+  esac
 
-	cp "${KERNEL}" "${STAGING}/kernel${SUFFIX}.img"
+  cp "${KERNEL}" "${STAGING}/kernel${SUFFIX}.img"
 
-	if [ -f "${MNT}/boot/initrd.img-${VERSION}" ]; then
-		cp "${MNT}/boot/initrd.img-${VERSION}" "${STAGING}/initramfs${SUFFIX}"
-	else
-		warn "no initrd.img-${VERSION}: ${VERSION} will boot without an initramfs"
-	fi
+  if [ -f "${MNT}/boot/initrd.img-${VERSION}" ]; then
+    cp "${MNT}/boot/initrd.img-${VERSION}" "${STAGING}/initramfs${SUFFIX}"
+  else
+    warn "no initrd.img-${VERSION}: ${VERSION} will boot without an initramfs"
+  fi
 
-	for DTB in "${DTB_DIR}"/bcm*.dtb; do
-		[ -e "${DTB}" ] || continue
-		cp "${DTB}" "${STAGING}/"
-	done
+  for DTB in "${DTB_DIR}"/bcm*.dtb; do
+    [ -e "${DTB}" ] || continue
+    cp "${DTB}" "${STAGING}/"
+  done
 
-	for OVERLAY in "${MODULES}/${VERSION}"/dtb/overlays/*.dtb* \
-		"${MODULES}/${VERSION}"/dtb/overlays/README; do
-		[ -e "${OVERLAY}" ] || continue
-		cp "${OVERLAY}" "${STAGING}/overlays/"
-	done
+  for OVERLAY in "${MODULES}/${VERSION}"/dtb/overlays/*.dtb* \
+    "${MODULES}/${VERSION}"/dtb/overlays/README; do
+    [ -e "${OVERLAY}" ] || continue
+    cp "${OVERLAY}" "${STAGING}/overlays/"
+  done
 
-	info "payload: ${VERSION} -> kernel${SUFFIX}.img"
+  info "payload: ${VERSION} -> kernel${SUFFIX}.img"
 done
 
 NEW_CMDLINE=""
 for PARAM in $(tr -d '\r' < "${TEMPLATE}"); do
-	case "${PARAM}" in
-		root=ROOTDEV)
-			PARAM="root=PARTUUID=${PARTUUID}"
-			;;
-		rauc.slot=SLOTNAME)
-			PARAM="rauc.slot=${PREFIX}"
-			;;
-	esac
-	NEW_CMDLINE="${NEW_CMDLINE:+${NEW_CMDLINE} }${PARAM}"
+  case "${PARAM}" in
+    root=ROOTDEV)
+      PARAM="root=PARTUUID=${PARTUUID}"
+      ;;
+    rauc.slot=SLOTNAME)
+      PARAM="rauc.slot=${PREFIX}"
+      ;;
+  esac
+  NEW_CMDLINE="${NEW_CMDLINE:+${NEW_CMDLINE} }${PARAM}"
 done
 
 printf '%s\n' "${NEW_CMDLINE}" > "${STAGING}/cmdline.txt"
@@ -139,15 +139,15 @@ printf '%s\n' "${NEW_CMDLINE}" > "${STAGING}/cmdline.txt"
 # an incomplete directory would be a silent fallback to the boot partition root
 [ -f "${STAGING}/cmdline.txt" ] || die "no cmdline.txt staged"
 for STAGED in "${STAGING}"/kernel*.img; do
-	[ -e "${STAGED}" ] || die "no kernel staged for ${PREFIX}"
-	break
+  [ -e "${STAGED}" ] || die "no kernel staged for ${PREFIX}"
+  break
 done
 
 # two renames, so the directory is never partly present under its real name
 TARGET="${BOOT_DIR}/${PREFIX}"
 if [ -e "${TARGET}" ]; then
-	rm -rf "${TARGET}.old"
-	mv "${TARGET}" "${TARGET}.old"
+  rm -rf "${TARGET}.old"
+  mv "${TARGET}" "${TARGET}.old"
 fi
 mv "${STAGING}" "${TARGET}"
 STAGING=""

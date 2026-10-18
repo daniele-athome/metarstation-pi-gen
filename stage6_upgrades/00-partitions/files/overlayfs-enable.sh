@@ -10,40 +10,40 @@ CONFIG="${BOOT_DIR}/config.txt"
 
 # the live cmdline.txt sits under os_prefix, next to the active slot's kernel
 active_cmdline() {
-	prefix=""
-	if [ -r "${CONFIG}" ]; then
-		prefix="$(sed -nE 's/^[[:space:]]*os_prefix=([^[:space:]]*).*/\1/p' "${CONFIG}" |
-			tr -d '\r' | head -n1)"
-	fi
+  prefix=""
+  if [ -r "${CONFIG}" ]; then
+    prefix="$(sed -nE 's/^[[:space:]]*os_prefix=([^[:space:]]*).*/\1/p' "${CONFIG}" |
+      tr -d '\r' | head -n1)"
+  fi
 
-	printf '%s' "${BOOT_DIR}/${prefix}cmdline.txt"
+  printf '%s' "${BOOT_DIR}/${prefix}cmdline.txt"
 }
 
 CMDLINE="$(active_cmdline)"
 
 if [ ! -e /usr/share/initramfs-tools/scripts/init-bottom/overlayroot ]; then
-	echo "$0: the overlayroot package is not installed" >&2
-	exit 1
+  echo "$0: the overlayroot package is not installed" >&2
+  exit 1
 fi
 
 if [ ! -f "${CMDLINE}" ]; then
-	echo "$0: ${CMDLINE} does not exist" >&2
-	exit 1
+  echo "$0: ${CMDLINE} does not exist" >&2
+  exit 1
 fi
 
 REMOUNT_RO=no
 
 restore_boot() {
-	if [ "${REMOUNT_RO}" = "yes" ]; then
-		mount -o remount,ro "${BOOT_DIR}"
-	fi
+  if [ "${REMOUNT_RO}" = "yes" ]; then
+    mount -o remount,ro "${BOOT_DIR}"
+  fi
 }
 
 trap restore_boot EXIT
 
 if findmnt -no OPTIONS "${BOOT_DIR}" | grep -qE '(^|,)ro(,|$)'; then
-	mount -o remount,rw "${BOOT_DIR}"
-	REMOUNT_RO=yes
+  mount -o remount,rw "${BOOT_DIR}"
+  REMOUNT_RO=yes
 fi
 
 # drop any overlayroot= parameter already there, ours is the only supported one
