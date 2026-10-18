@@ -5,88 +5,146 @@ set -eu
 
 BOOT_DIR=/boot/firmware
 CONFIG="${BOOT_DIR}/config.txt"
+CONFIG_BACKUP="${BOOT_DIR}/config.bak"
 STATE_DIR=/data/rauc
 PROC_CMDLINE=/proc/cmdline
 
+BOOT_REMOUNTED=no
+
+die() {
+  echo "os-prefix-backend: $*" >&2
+  exit 1
+}
+
+cleanup() {
+  if [ "${BOOT_REMOUNTED}" = yes ]; then
+    sync
+    mount -o remount,ro "${BOOT_DIR}" ||
+      echo "os-prefix-backend: cannot restore ${BOOT_DIR} read-only" >&2
+  fi
+}
+
 part_bootname() {
-	case "$1" in
-		02 | 2) printf 'slot-a\n' ;;
-		03 | 3) printf 'slot-b\n' ;;
-		*) return 1 ;;
-	esac
+  case "$1" in
+    02 | 2) printf 'slot-a\n' ;;
+    03 | 3) printf 'slot-b\n' ;;
+    *) return 1 ;;
+  esac
+}
+
+check_bootname() {
+  case "${1:-}" in
+    slot-a | slot-b) ;;
+    *) die "not a bootname: ${1:-<none>}" ;;
+  esac
 }
 
 # the bootname is the os_prefix directory name, without the trailing slash
 primary_bootname() {
-	sed -nE 's#^[[:space:]]*os_prefix=([^[:space:]/]+)/.*#\1#p' "${CONFIG}" |
-		tr -d '\r' | head -n1
+  sed -nE 's#^[[:space:]]*os_prefix=([^[:space:]/]+)/.*#\1#p' "${CONFIG}" |
+    tr -d '\r' | head -n1
 }
 
 # the partition number is the last field of an MBR PARTUUID
 booted_bootname() {
-	# shellcheck disable=SC2013
-	for param in $(cat "${PROC_CMDLINE}"); do
-		case "${param}" in
-			root=PARTUUID=*-*)
-				part_bootname "${param##*-}"
-				return
-				;;
-		esac
-	done
-	return 1
+  # shellcheck disable=SC2013
+  for param in $(cat "${PROC_CMDLINE}"); do
+    case "${param}" in
+      root=PARTUUID=*-*)
+        part_bootname "${param##*-}"
+        return
+        ;;
+    esac
+  done
+  return 1
 }
 
 slot_state() {
-	_state=good
-	if [ -r "${STATE_DIR}/$1.state" ]; then
-		read -r _state < "${STATE_DIR}/$1.state" || _state=good
-	fi
+  _state=good
+  if [ -r "${STATE_DIR}/$1.state" ]; then
+    read -r _state < "${STATE_DIR}/$1.state" || _state=good
+  fi
 
-	case "${_state}" in
-		good | bad) printf '%s\n' "${_state}" ;;
-		*) printf 'good\n' ;;
-	esac
+  case "${_state}" in
+    good | bad) printf '%s\n' "${_state}" ;;
+    *) printf 'good\n' ;;
+  esac
+}
+
+set_primary() {
+  _bootname="$1"
+  _dir="${BOOT_DIR}/${_bootname}"
+
+  for _cmd in findmnt mount sed cp sync; do
+    command -v "${_cmd}" > /dev/null 2>&1 || die "missing required command: ${_cmd}"
+  done
+
+  # safety checks
+  [ -f "${CONFIG}" ] || die "${CONFIG} is missing"
+  [ -d "${_dir}" ] || die "${_dir} does not exist"
+  [ -f "${_dir}/cmdline.txt" ] || die "${_dir}/cmdline.txt is missing"
+  for _kernel in "${_dir}"/kernel*.img; do
+    [ -e "${_kernel}" ] || die "no kernel in ${_dir}"
+    break
+  done
+
+  [ "$(primary_bootname)" != "${_bootname}" ] || return 0
+
+  trap cleanup EXIT
+
+  if findmnt -no OPTIONS "${BOOT_DIR}" | grep -qE '(^|,)ro(,|$)'; then
+    mount -o remount,rw "${BOOT_DIR}" || die "cannot remount ${BOOT_DIR} read-write"
+    BOOT_REMOUNTED=yes
+  fi
+
+  # the configuration before this switch, to restore from a card reader
+  cp "${CONFIG}" "${CONFIG_BACKUP}"
+  sync
+
+  if grep -qE '^[[:space:]]*os_prefix=' "${CONFIG}"; then
+    sed -E "s|^[[:space:]]*os_prefix=.*|os_prefix=${_bootname}/|" "${CONFIG}" \
+      > "${CONFIG}.new"
+  else
+    # ahead of every conditional filter, so that it applies to all models
+    {
+      printf 'os_prefix=%s/\n' "${_bootname}"
+      cat "${CONFIG}"
+    } > "${CONFIG}.new"
+  fi
+  sync
+  mv "${CONFIG}.new" "${CONFIG}"
+  sync
 }
 
 case "${1:-}" in
-	get-primary)
-		_primary="$(primary_bootname)"
-		[ -n "${_primary}" ] || exit 1
-		printf '%s\n' "${_primary}"
-		;;
-	get-current)
-		booted_bootname
-		;;
-	get-state)
-		[ -n "${2:-}" ] || exit 1
-		slot_state "$2"
-		;;
-	set-state)
-		case "${2:-}" in
-			slot-a | slot-b) ;;
-			*)
-				echo "os-prefix-backend: not a bootname: ${2:-<none>}" >&2
-				exit 1
-				;;
-		esac
-		case "${3:-}" in
-			good | bad) ;;
-			*)
-				echo "os-prefix-backend: not a state: ${3:-<none>}" >&2
-				exit 1
-				;;
-		esac
-		# written aside and renamed, so get-state never reads a partial file
-		mkdir -p "${STATE_DIR}"
-		printf '%s\n' "$3" > "${STATE_DIR}/$2.state.new"
-		mv "${STATE_DIR}/$2.state.new" "${STATE_DIR}/$2.state"
-		;;
-	set-primary)
-		echo "os-prefix-backend: set-primary is not enabled, use slot-switch" >&2
-		exit 1
-		;;
-	*)
-		echo "os-prefix-backend: unknown command: ${1:-<none>}" >&2
-		exit 1
-		;;
+  get-primary)
+    _primary="$(primary_bootname)"
+    [ -n "${_primary}" ] || exit 1
+    printf '%s\n' "${_primary}"
+    ;;
+  get-current)
+    booted_bootname
+    ;;
+  get-state)
+    [ -n "${2:-}" ] || exit 1
+    slot_state "$2"
+    ;;
+  set-state)
+    check_bootname "${2:-}"
+    case "${3:-}" in
+      good | bad) ;;
+      *) die "not a state: ${3:-<none>}" ;;
+    esac
+    # written aside and renamed, so get-state never reads a partial file
+    mkdir -p "${STATE_DIR}"
+    printf '%s\n' "$3" > "${STATE_DIR}/$2.state.new"
+    mv "${STATE_DIR}/$2.state.new" "${STATE_DIR}/$2.state"
+    ;;
+  set-primary)
+    check_bootname "${2:-}"
+    set_primary "$2"
+    ;;
+  *)
+    die "unknown command: ${1:-<none>}"
+    ;;
 esac
