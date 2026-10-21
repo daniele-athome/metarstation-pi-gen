@@ -14,10 +14,14 @@ systemctl disable \
   dpkg-db-backup.timer \
   apt-daily.timer \
   apt-daily-upgrade.timer \
-  sshswitch.service
+  sshswitch.service \
+  systemd-networkd.service \
+  rsync.service
 systemctl mask \
   dpkg-db-backup.timer \
   apt-daily.timer \
   apt-daily-upgrade.timer \
-  sshswitch.service
+  sshswitch.service \
+  systemd-networkd.service \
+  rsync.service
 EOF
