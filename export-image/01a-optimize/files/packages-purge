@@ -35,3 +35,11 @@ make
 ppp
 cloud-init
 rpi-cloud-init-mods
+7zip
+fbset
+manpages
+nano
+strace
+xauth
+paxctld
+rpi-usb-gadget
