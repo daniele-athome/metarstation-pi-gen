@@ -34,6 +34,10 @@ on_chroot << EOF
   -r /usr/src/metarstation-daemon/rebuild.txt
 EOF
 
+# our very own issue ^-^
+METAR_GIT_HASH=$(git -C /usr/src/metarstation-daemon rev-parse HEAD)
+echo -e "${PI_GEN_RELEASE} ${IMG_DATE}\nMETAR builder ${BUILDER_GIT_HASH}, weather daemon ${METAR_GIT_HASH}" > "${ROOTFS_DIR}/etc/metar-issue"
+
 # cleanup
 rm -fr "${ROOTFS_DIR}/usr/src/metarstation-daemon"
 
