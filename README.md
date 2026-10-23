@@ -112,6 +112,14 @@ Everything upstream pi-gen supports in `config` still applies. This fork adds:
   `RAUC_KEYRING_FILE` is set too, the bundle is verified against it right after
   signing.
 
+* `BUILDER_GIT_HASH` (Default: commit hash of this repository)
+
+  The git commit hash of the repository where the actual build is happening. This
+  can be useful if the build process itself is executed in another repository
+  (e.g., a repository hosting configuration data for an actual build) and you want
+  to track  that in the build. This (and other) information will be written in the
+  image in `/etc/metar-issue`.
+
 Two upstream variables behave differently here:
 
 * `ARCHIVE_FILENAME` is **gone**. Compressed artifacts are named after `IMG_FILENAME`.
