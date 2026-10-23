@@ -119,6 +119,8 @@ echo "Boot payload moved into ${ROOT_SLOT_PREFIX} (${MOVED} entries)"
 
 cp "$ROOTFS_DIR/etc/rpi-issue" "$INFO_FILE"
 
+cat "$ROOTFS_DIR/etc/metar-issue" >> "$INFO_FILE"
+
 {
 	if [ -f "$ROOTFS_DIR/usr/share/doc/raspberrypi-kernel/changelog.Debian.gz" ]; then
 		firmware=$(zgrep "firmware as of" \
