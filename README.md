@@ -38,7 +38,7 @@ in the tree for easier merges but never built.
 |---------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `stage0`            | Bootstrap: minimal filesystem via `debootstrap`, apt configuration.                                                                                                                                                                |
 | `stage1`            | Minimal bootable system: fstab, bootloader, networking, `raspi-config`.                                                                                                                                                            |
-| `stage2_slim`       | Replaces upstream `stage2` (the Lite system) with the same sub-stages minus cloud-init, and a trimmed package list.                                                                                                                |
+| `stage2`            | Modified `stage2` (the Lite system) with the same sub-stages minus cloud-init, and a trimmed package list.                                                                                                                         |
 | `stage6_upgrades`   | Runtime support for the A/B layout: the `/data` mount, read-only boot and root, first-boot growth of the data partition, persistence of the machine ID across reboots, and RAUC with a custom bootloader backend over `os_prefix`. |
 | `stage7_networking` | Connectivity: Improv Wi-Fi provisioning over BLE, NetworkManager with its connections stored on `/data`, a Wi-Fi watchdog, SSH configuration, and a Cloudflare Tunnel for remote access.                                           |
 | `stage8_metar`      | The application: installs [metarstation-daemon](https://github.com/daniele-athome/metarstation-daemon) in a virtualenv, plus the weather daemon and the HTTP server serving the dashboard. This is the exported image stage.       |
@@ -126,8 +126,7 @@ RELEASE=trixie
 IMG_NAME="raspios-metar-$RELEASE-$ARCH"
 PI_GEN_RELEASE="Raspberry Pi METAR Station"
 
-# Mandatory: stage2_slim replaces stage2, and the desktop stages are skipped.
-STAGE_LIST="stage0 stage1 stage2_slim stage6_upgrades stage7_networking stage8_metar"
+STAGE_LIST="stage0 stage1 stage2 stage6_upgrades stage7_networking stage8_metar"
 
 # The image is headless: keep the user name and set a password.
 FIRST_USER_NAME='pi'

@@ -1,26 +1,21 @@
 ssh less fbset sudo psmisc strace ed ncdu
 console-setup keyboard-configuration debconf-utils parted
-build-essential manpages-dev bash-completion gdb pkg-config
+build-essential bash-completion pkg-config
 python-is-python3
-v4l-utils
 gpiod python3-libgpiod
 python3-gpiozero
 python3-rpi-lgpio
 python3-spidev
 python3-smbus2
 avahi-daemon
-lua5.1
-luajit
 ca-certificates curl
 usbutils
 dosfstools
-rpi-swap rpi-loop-utils
+rpi-loop-utils
 raspberrypi-sys-mods
-apt-listchanges
 usb-modeswitch
 libpam-chksshpwd
 rpi-update
-libmtp-runtime
 rsync
 htop
 man-db
@@ -39,5 +34,4 @@ bluez bluez-firmware
 rpi-keyboard-config
 rpi-keyboard-fw-update
 rpi-usb-gadget modemmanager-
-rpi-connect-lite
 rpifwcrypto
