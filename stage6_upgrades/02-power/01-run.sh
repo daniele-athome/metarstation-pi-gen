@@ -3,9 +3,9 @@
 # Install PiSugar services
 
 curl -s -L -o "${ROOTFS_DIR}/tmp/pisugar-poweroff.deb" \
-  "https://github.com/PiSugar/pisugar-power-manager-rs/releases/download/v2.3.5/pisugar-poweroff_2.3.5-1_armhf.deb"
+  "https://github.com/PiSugar/pisugar-power-manager-rs/releases/download/v2.4.0/pisugar-poweroff_2.4.0-1_armhf.deb"
 curl -s -L -o "${ROOTFS_DIR}/tmp/pisugar-server.deb" \
-  "https://github.com/PiSugar/pisugar-power-manager-rs/releases/download/v2.3.5/pisugar-server_2.3.5-1_armhf.deb"
+  "https://github.com/PiSugar/pisugar-power-manager-rs/releases/download/v2.4.0/pisugar-server_2.4.0-1_armhf.deb"
 
 on_chroot << EOF
 debconf-set-selections << EOF2
