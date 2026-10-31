@@ -6,4 +6,4 @@ ConditionPathExists=/dev/i2c-1
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/bin/sh -c 'i2cget -y 1 0x57 0x02 >/dev/null 2>&1 && touch /run/pisugar-present || true'
+ExecStart=/bin/sh -c 'i2cget -y 1 0x57 0x02 >/dev/null 2>&1 && { modprobe pisugar_battery; touch /run/pisugar-present; } || true'
